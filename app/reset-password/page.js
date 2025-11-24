@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabaseClient"
 import { useRouter } from "next/navigation"
 
@@ -10,18 +10,37 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false)
   const [message, setMessage] = useState(null)
 
-  async function handleReset(e) {
+  useEffect(() => {
+    async function handleSessionFromUrl() {
+      const hash = window.location.hash
+      const params = new URLSearchParams(hash.replace("#", ""))
+
+      const access_token = params.get("access_token")
+      const refresh_token = params.get("refresh_token")
+
+      if (access_token && refresh_token) {
+        await supabase.auth.setSession({
+          access_token,
+          refresh_token,
+        })
+      }
+    }
+
+    handleSessionFromUrl()
+  }, [])
+
+  const handleReset = async (e) => {
     e.preventDefault()
     setLoading(true)
 
     const { error } = await supabase.auth.updateUser({
-      password
+      password,
     })
 
     if (error) {
       setMessage(error.message)
     } else {
-      setMessage("Password updated successfully ✅")
+      setMessage("✅ Password updated successfully")
       setTimeout(() => router.push("/login"), 2000)
     }
 
@@ -41,6 +60,7 @@ export default function ResetPassword() {
           placeholder="New password"
           value={password}
           required
+          minLength={6}
           onChange={(e) => setPassword(e.target.value)}
           className="p-3 rounded bg-gray-900 border border-gray-700 w-full"
         />
