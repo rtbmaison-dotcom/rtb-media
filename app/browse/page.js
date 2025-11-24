@@ -54,7 +54,7 @@ export default function Browse() {
     },
     {
       title: "Behind The Lens : Extricate",
-      image: "/port poster.jpeg",
+      image: "BTL.jpg",
     },
   ]
 
@@ -180,7 +180,7 @@ export default function Browse() {
                 <p className="font-semibold">{item.title}</p>
                 {!item.link && (
                   <p className="text-xs text-gray-400 mt-1">
-                    Clips & Behind Content
+                    Coming Soon
                   </p>
                 )}
               </div>

@@ -60,7 +60,7 @@ export default function LoginPage() {
     setMessage(null)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:3000/reset-password",
+      redirectTo: "https://richerthanbefore.com/reset-password",
     })
 
     if (error) {
