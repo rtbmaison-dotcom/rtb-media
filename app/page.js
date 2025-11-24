@@ -154,7 +154,7 @@ export default function Home() {
               <li>📧 businessrtb@gmail.com</li>
               <li className="flex items-center gap-2">
                 <img src="/ig.png" alt="Instagram" className="w-4 h-4" />
-                <span>@richerthanbefore</span>
+                <span>@RTB.UK</span>
               </li>
             </ul>
           </div>
