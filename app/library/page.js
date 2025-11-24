@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 
 export default function Library() {
   const [isSubscribed, setIsSubscribed] = useState(false)
@@ -19,6 +20,7 @@ export default function Library() {
         setLoading(false)
       }
     }
+
     checkSubscription()
   }, [])
 
@@ -31,12 +33,13 @@ export default function Library() {
       <main className="flex flex-col items-center justify-center min-h-screen bg-gray-900 text-white">
         <h1 className="text-3xl font-bold mb-4">Access Denied</h1>
         <p className="text-xl mb-8">You must subscribe to access the library.</p>
-        <a
+
+        <Link
           href="/"
           className="bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-6 rounded"
         >
           Subscribe Now
-        </a>
+        </Link>
       </main>
     )
   }

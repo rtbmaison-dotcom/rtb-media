@@ -20,7 +20,7 @@ export default function AuthCallback() {
     }
 
     handleAuth()
-  }, [])
+  }, [router]) // ✅ added router here
 
   return (
     <div className="flex items-center justify-center h-screen text-white bg-black">
