@@ -10,7 +10,7 @@ export async function POST(req) {
       mode: 'subscription',
       line_items: [
         {
-          price: 'price_1S7nJK3XVg28XHhtki2BuWQX', // your real Price ID
+          price: 'price_1SX5lcKU33MgwjrBDfhHbPFV', // your real Price ID
           quantity: 1,
         },
       ],
