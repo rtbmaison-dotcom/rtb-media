@@ -4,6 +4,9 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL
+const STRIPE_LINK = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_LINK
+
 export default function LoginPage() {
   const router = useRouter()
 
@@ -15,22 +18,7 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  // ✅ GOOGLE LOGIN
-  async function handleGoogle() {
-    try {
-      setLoading(true)
-
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: "http://localhost:3000/auth/callback",
-        },
-      })
-    } catch (err) {
-      setError("Google login failed")
-      setLoading(false)
-    }
-  }
+  
 
   // ✅ LOGIN
   async function handleLogin(e) {
@@ -60,19 +48,19 @@ export default function LoginPage() {
     setMessage(null)
 
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "http://localhost:3000/reset-password",
+      redirectTo: `${SITE_URL}/reset-password`,
     })
 
     if (error) {
       setError(error.message)
     } else {
-      setMessage("Password reset link sent. Check your email 📬")
+      setMessage("✅ Password reset link sent. Check your email.")
     }
 
     setLoading(false)
   }
 
-  // ✅ SIGN UP → STRIPE
+  // ✅ SIGN UP → STRIPE CHECKOUT LINK
   async function handleSignup(e) {
     e.preventDefault()
     setLoading(true)
@@ -97,7 +85,7 @@ export default function LoginPage() {
     }
 
     if (data?.user) {
-      // Create profile
+      // Optional profile creation
       await fetch("/api/create-profile", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -107,17 +95,10 @@ export default function LoginPage() {
         }),
       })
 
-      // Create Stripe session
-      const res = await fetch("/api/checkout_sessions", {
-        method: "POST",
-      })
-
-      const session = await res.json()
-
-      if (session?.url) {
-        window.location.href = session.url
+      if (STRIPE_LINK) {
+        window.location.href = STRIPE_LINK
       } else {
-        setError("Stripe session failed to create")
+        setError("Stripe Checkout link not found in env")
         setLoading(false)
       }
     } else {
@@ -148,6 +129,7 @@ export default function LoginPage() {
           }
           className="flex flex-col space-y-4"
         >
+          {/* EMAIL */}
           <input
             type="email"
             placeholder="Email"
@@ -157,6 +139,7 @@ export default function LoginPage() {
             className="p-3 rounded bg-gray-900 border border-gray-700"
           />
 
+          {/* PASSWORD */}
           {mode !== "reset" && (
             <input
               type="password"
@@ -168,6 +151,7 @@ export default function LoginPage() {
             />
           )}
 
+          {/* CONFIRM PASSWORD */}
           {mode === "signup" && (
             <input
               type="password"
@@ -179,6 +163,7 @@ export default function LoginPage() {
             />
           )}
 
+          {/* FORGOT */}
           {mode === "login" && (
             <p
               onClick={() => setMode("reset")}
@@ -188,6 +173,7 @@ export default function LoginPage() {
             </p>
           )}
 
+          {/* SUBMIT */}
           <button
             type="submit"
             disabled={loading}
@@ -203,17 +189,25 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* GOOGLE */}
         {mode === "login" && (
           <>
             <div className="my-6 text-center text-gray-500">or</div>
 
-            
+            <button
+              onClick={handleGoogle}
+              disabled={loading}
+              className="w-full py-3 border border-gray-600 rounded-xl hover:bg-gray-900 transition"
+            >
+              Continue with Google
+            </button>
           </>
         )}
 
         {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
         {message && <p className="text-green-500 mt-4 text-center">{message}</p>}
 
+        {/* SWITCH MODES */}
         {mode !== "reset" && (
           <p
             className="mt-6 text-center text-gray-400 cursor-pointer"
