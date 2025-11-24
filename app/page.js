@@ -2,21 +2,12 @@
 
 import { useRouter } from "next/navigation"
 
-// NOTE:
-// The previous version used external UI + animation libraries (framer-motion,
-// shadcn/ui Button & Card). In your environment one of those imports was
-// resolving to `null`, which caused the runtime error:
-//   "TypeError: null is not an object (evaluating 'esm_default2._')".
-// This version removes those external dependencies and uses plain
-// React + Tailwind elements only, keeping the same visual design but
-// avoiding the faulty imports.
-
 export default function Home() {
   const router = useRouter()
 
   const handleSubscribe = async () => {
     try {
-      const res = await fetch('/api/checkout_sessions', { method: 'POST' })
+      const res = await fetch('/api/checkout', { method: 'POST' }) // ✅ FIXED ROUTE
 
       if (!res.ok) {
         throw new Error(`Request failed with status ${res.status}`)
@@ -31,14 +22,13 @@ export default function Home() {
       window.location.href = data.url
     } catch (err) {
       console.error('Error creating Stripe session:', err)
-      if (typeof window !== 'undefined') {
-        alert('There was an error starting your checkout. Please try again.')
-      }
+      alert('There was an error starting your checkout. Please try again.')
     }
   }
 
   return (
     <main className="bg-[#070B17] text-white min-h-screen w-full flex flex-col">
+
       {/* NAVBAR */}
       <nav className="flex justify-between items-center px-6 md:px-10 py-4 bg-[#070B17]/80 backdrop-blur-md border-b border-white/5 sticky top-0 z-50">
         <div className="flex items-center gap-3">
@@ -73,7 +63,7 @@ export default function Home() {
       >
         <div className="absolute inset-0 bg-black/70" />
 
-        <div className="relative z-10 max-w-3xl transform transition-transform duration-700 ease-out">
+        <div className="relative z-10 max-w-3xl">
           <div className="inline-block bg-red-600/90 px-4 py-1 rounded-full text-xs md:text-sm mb-6 font-semibold tracking-wide uppercase">
             Now Streaming — Short Film + BTS
           </div>
@@ -121,7 +111,7 @@ export default function Home() {
             { title: 'Early Viewing', desc: 'Watch episodes before public release.' },
             { title: 'Cinema Quality', desc: 'Stunning visuals in HD & 4K.' },
             { title: 'Exclusive Updates', desc: 'Weekly drops + insider news.' },
-          ].map((item, i) => (
+          ].map((item) => (
             <div
               key={item.title}
               className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.5)] hover:border-red-500/40 transition"
@@ -133,56 +123,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* EPISODES */}
-      <section className="px-6 py-16 md:py-24 max-w-7xl mx-auto">
-        <div className="mb-8 md:mb-10 text-center md:text-left">
-          <h2 className="text-2xl md:text-3xl font-bold mb-2">Behind the Scenes</h2>
-          <p className="opacity-60 text-sm md:text-base">A look into the making of EXTRICATE</p>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
-          {/* Episode 1 */}
-          <article className="bg-white/5 border border-white/10 overflow-hidden rounded-2xl shadow-[0_20px_60px_rgba(0,0,0,0.5)] hover:scale-[1.02] transition-transform">
-            <div className="relative">
-              <img src="/port poster.jpeg" alt="EXTRICATE – The Vision" className="w-full h-56 md:h-64 object-cover" />
-              <span className="absolute top-4 right-4 bg-red-600 text-[0.65rem] md:text-xs px-3 py-1 rounded-full font-semibold tracking-wide uppercase">
-                Members Only
-              </span>
-            </div>
-
-            <div className="p-5 md:p-6">
-              <p className="text-xs md:text-sm opacity-60 mb-1">Documentary • Episode 1</p>
-              <h3 className="font-semibold text-base md:text-lg">The Vision</h3>
-            </div>
-          </article>
-
-          {/* Example placeholders for future episodes (kept subtle) */}
-          <article className="bg-white/5 border border-dashed border-white/10 rounded-2xl p-6 flex flex-col justify-center items-center text-center opacity-60">
-            <p className="text-xs uppercase tracking-wide mb-1">Coming Soon</p>
-            <p className="text-sm md:text-base font-medium">Episode 2 • The Shoot</p>
-          </article>
-
-          <article className="bg-white/5 border border-dashed border-white/10 rounded-2xl p-6 flex flex-col justify-center items-center text-center opacity-60">
-            <p className="text-xs uppercase tracking-wide mb-1">Coming Soon</p>
-            <p className="text-sm md:text-base font-medium">Episode 3 • Post Production</p>
-          </article>
-
-          <article className="bg-white/5 border border-dashed border-white/10 rounded-2xl p-6 flex flex-col justify-center items-center text-center opacity-60">
-            <p className="text-xs uppercase tracking-wide mb-1">Coming Soon</p>
-            <p className="text-sm md:text-base font-medium">Episode 4 • Premiere Night</p>
-          </article>
-        </div>
-      </section>
-
       {/* FOOTER */}
       <footer className="mt-auto bg-[#070B17] border-t border-white/5 px-6 md:px-10 py-12 md:py-16 text-xs md:text-sm">
         <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-4 gap-8 md:gap-10">
-
-          {/* BRAND / LOGO */}
           <div className="flex flex-col gap-3">
-            <img 
-              src="/rtb logo.png" 
-              alt="RTB Logo" 
+            <img
+              src="/rtb logo.png"
+              alt="RTB Logo"
               className="w-14 h-14 object-contain"
             />
             <p className="opacity-60 text-sm md:text-base max-w-xs">
@@ -190,7 +137,6 @@ export default function Home() {
             </p>
           </div>
 
-          {/* CONTACT */}
           <div>
             <h4 className="font-semibold mb-3 text-sm md:text-base">Contact</h4>
             <ul className="opacity-60 space-y-2">
@@ -202,15 +148,11 @@ export default function Home() {
             </ul>
           </div>
 
-          {/* STAY UPDATED */}
           <div>
             <h4 className="font-semibold mb-3 text-sm md:text-base">Stay Updated</h4>
             <form
               className="flex mt-1"
-              onSubmit={(e) => {
-                e.preventDefault()
-                // TODO: wire up to your newsletter backend
-              }}
+              onSubmit={(e) => e.preventDefault()}
             >
               <input
                 type="email"
@@ -226,7 +168,6 @@ export default function Home() {
             </form>
           </div>
 
-          {/* TERMS */}
           <div className="flex md:items-end">
             <button
               onClick={() => router.push('/terms')}
