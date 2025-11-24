@@ -93,7 +93,7 @@ export default function Home() {
               onClick={() => router.push("/preview")}
               className="border border-white/20 px-8 md:px-10 py-3 md:py-4 rounded-2xl text-base md:text-lg font-semibold hover:bg-white/10 transition-transform hover:-translate-y-0.5"
             >
-              Watch Preview
+              Watch Trailer
             </button>
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function Home() {
             { title: "Founding Status", desc: "Early supporter perks + recognition." },
             { title: "Early Viewing", desc: "Watch episodes before public release." },
             { title: "Cinema Quality", desc: "Stunning visuals in HD & 4K." },
-            { title: "Exclusive Updates", desc: "Weekly drops + insider news." },
+            { title: "Exclusive Updates", desc: " New drops + insider news." },
           ].map((item) => (
             <div
               key={item.title}
