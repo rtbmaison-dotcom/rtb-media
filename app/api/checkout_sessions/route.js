@@ -34,9 +34,8 @@ export async function POST() {
   } catch (err) {
     console.error("Stripe error:", err)
 
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500 }
-    )
+    return new Response(JSON.stringify({ error: err.message }), {
+      status: 500,
+    })
   }
 }
