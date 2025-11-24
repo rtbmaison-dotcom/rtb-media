@@ -5,26 +5,9 @@ import { useRouter } from "next/navigation"
 export default function Home() {
   const router = useRouter()
 
-  const handleSubscribe = async () => {
-    try {
-      // ✅ FIXED: Must match your folder: /checkout_sessions/route.js
-      const res = await fetch("/api/checkout_sessions", { method: "POST" }) 
-
-      if (!res.ok) {
-        throw new Error(`Request failed with status ${res.status}`)
-      }
-
-      const data = await res.json()
-
-      if (!data?.url) {
-        throw new Error("Checkout URL missing in response")
-      }
-
-      window.location.href = data.url
-    } catch (err) {
-      console.error("Error creating Stripe session:", err)
-      alert("There was an error starting your checkout. Please try again.")
-    }
+  const handleSubscribe = () => {
+    window.location.href =
+      "https://buy.stripe.com/14A6oIb8Z9C20LW63b3VC00"
   }
 
   return (
