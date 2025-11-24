@@ -34,33 +34,9 @@ export default function AccountPage() {
     loadProfile()
   }, [router])
 
-  const handleManageBilling = async () => {
+  const handleManageBilling = () => {
+    setBillingLoading(true)
     router.push("/cancel")
-    
-    try {
-      setBillingLoading(true)
-
-      const res = await fetch("/api/checkout_sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user.id }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || "Unable to redirect to billing")
-      }
-
-      if (data?.url) {
-        window.location.href = data.url
-      }
-    } catch (err) {
-      console.error(err)
-      alert("There was an issue opening billing. Try again.")
-    } finally {
-      setBillingLoading(false)
-    }
   }
 
   if (loading) {
@@ -109,7 +85,7 @@ export default function AccountPage() {
                   : "bg-red-600 hover:bg-red-700"
               }`}
             >
-              {billingLoading ? "Opening billing..." : "Manage / Cancel Subscription"}
+              {billingLoading ? "Redirecting..." : "Manage / Cancel Subscription"}
             </button>
 
             <p className="text-xs opacity-60 mt-2">
@@ -136,4 +112,3 @@ export default function AccountPage() {
     </main>
   )
 }
-
