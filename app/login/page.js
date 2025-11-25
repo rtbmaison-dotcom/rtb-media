@@ -15,9 +15,6 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  // ✅ GOOGLE LOGIN
-  
-
   // ✅ LOGIN
   async function handleLogin(e) {
     e.preventDefault()
@@ -25,7 +22,7 @@ export default function LoginPage() {
     setError(null)
     setMessage(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -33,8 +30,26 @@ export default function LoginPage() {
     if (error) {
       setError(error.message)
       setLoading(false)
-    } else {
+      return
+    }
+
+    // ✅ Check subscription status after login
+    const res = await fetch("/api/check_subscription")
+    const sub = await res.json()
+
+    if (sub?.isSubscribed) {
       router.push("/browse")
+    } else {
+      // Send to Stripe if not subscribed
+      const checkout = await fetch("/api/checkout_sessions", { method: "POST" })
+      const session = await checkout.json()
+
+      if (session?.url) {
+        window.location.href = session.url
+      } else {
+        setError("Payment session failed. Please try again.")
+        setLoading(false)
+      }
     }
   }
 
@@ -82,32 +97,30 @@ export default function LoginPage() {
       return
     }
 
-    if (data?.user) {
-      // Create profile
-      await fetch("/api/create-profile", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: data.user.id,
-          email,
-        }),
-      })
-
-      // Create Stripe session
-      const res = await fetch("/api/checkout_sessions", {
-        method: "POST",
-      })
-
-      const session = await res.json()
-
-      if (session?.url) {
-        window.location.href = session.url
-      } else {
-        setError("Stripe session failed to create")
-        setLoading(false)
-      }
-    } else {
+    if (!data?.user) {
       setError("User creation failed")
+      setLoading(false)
+      return
+    }
+
+    // Create profile
+    await fetch("/api/create-profile", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        id: data.user.id,
+        email,
+      }),
+    })
+
+    // ✅ Send new user to Stripe
+    const res = await fetch("/api/checkout_sessions", { method: "POST" })
+    const session = await res.json()
+
+    if (session?.url) {
+      window.location.href = session.url
+    } else {
+      setError("Stripe checkout could not be created")
       setLoading(false)
     }
   }
@@ -184,18 +197,10 @@ export default function LoginPage() {
               : mode === "login"
               ? "Login"
               : mode === "signup"
-              ? "Sign Up & Continue to Payment"
+              ? "Sign Up & Pay"
               : "Send Reset Link"}
           </button>
         </form>
-
-        {mode === "login" && (
-          <>
-            <div className="my-6 text-center text-gray-500">or</div>
-
-            
-          </>
-        )}
 
         {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
         {message && <p className="text-green-500 mt-4 text-center">{message}</p>}
