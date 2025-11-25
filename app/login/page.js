@@ -4,6 +4,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
+const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/14A6oIb8Z9C20LW63b3VC00"
+
 export default function LoginPage() {
   const router = useRouter()
 
@@ -22,7 +24,7 @@ export default function LoginPage() {
     setError(null)
     setMessage(null)
 
-    const { data, error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -33,7 +35,7 @@ export default function LoginPage() {
       return
     }
 
-    // ✅ Check subscription status after login
+    // Check subscription status
     const res = await fetch("/api/check_subscription")
     const sub = await res.json()
 
@@ -41,15 +43,7 @@ export default function LoginPage() {
       router.push("/browse")
     } else {
       // Send to Stripe if not subscribed
-      const checkout = await fetch("/api/checkout_sessions", { method: "POST" })
-      const session = await checkout.json()
-
-      if (session?.url) {
-        window.location.href = session.url
-      } else {
-        setError("Payment session failed. Please try again.")
-        setLoading(false)
-      }
+      window.location.href = STRIPE_PAYMENT_LINK
     }
   }
 
@@ -73,7 +67,7 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  // ✅ SIGN UP → STRIPE
+  // ✅ SIGN UP → STRIPE PAYMENT LINK
   async function handleSignup(e) {
     e.preventDefault()
     setLoading(true)
@@ -103,26 +97,8 @@ export default function LoginPage() {
       return
     }
 
-    // Create profile
-    await fetch("/api/create-profile", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        id: data.user.id,
-        email,
-      }),
-    })
-
-    // ✅ Send new user to Stripe
-    const res = await fetch("/api/checkout_sessions", { method: "POST" })
-    const session = await res.json()
-
-    if (session?.url) {
-      window.location.href = session.url
-    } else {
-      setError("Stripe checkout could not be created")
-      setLoading(false)
-    }
+    // ✅ Send new user to Stripe Payment Link
+    window.location.href = STRIPE_PAYMENT_LINK
   }
 
   return (
