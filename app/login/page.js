@@ -16,21 +16,7 @@ export default function LoginPage() {
   const [message, setMessage] = useState(null)
 
   // ✅ GOOGLE LOGIN
-  async function handleGoogle() {
-    try {
-      setLoading(true)
-
-      await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: "http://localhost:3000/auth/callback",
-        },
-      })
-    } catch (err) {
-      setError("Google login failed")
-      setLoading(false)
-    }
-  }
+  
 
   // ✅ LOGIN
   async function handleLogin(e) {
