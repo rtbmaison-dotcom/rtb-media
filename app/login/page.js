@@ -1,29 +1,54 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useEffect } from "react"
+import { useRouter, useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
 export default function LoginPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState("login")
+  const [mode, setMode] = useState("login") // login | signup | reset
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  async function sendToStripe(userId) {
-    const res = await fetch("/api/create-checkout", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ userId }),
-    })
+  // 🔹 Read ?mode=signup or ?mode=reset from URL
+  useEffect(() => {
+    const urlMode = searchParams.get("mode")
+    if (urlMode === "signup" || urlMode === "reset" || urlMode === "login") {
+      setMode(urlMode)
+    }
+  }, [searchParams])
 
-    const { url } = await res.json()
-    window.location.href = url
+  async function sendToStripe(userId, email) {
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          email: email.toLowerCase(),
+        }),
+      })
+
+      if (!res.ok) {
+        const errText = await res.text()
+        throw new Error(errText)
+      }
+
+      const { url } = await res.json()
+      if (!url) throw new Error("No Stripe URL returned")
+
+      window.location.href = url
+    } catch (err) {
+      console.error(err)
+      setError("Stripe checkout failed. Try again.")
+      setLoading(false)
+    }
   }
 
   // ✅ LOGIN
@@ -31,9 +56,10 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setMessage(null)
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.toLowerCase(),
       password,
     })
 
@@ -57,10 +83,10 @@ export default function LoginPage() {
       return
     }
 
-    if (profile?.is_subscribed) {
+    if (profile?.is_subscribed === true) {
       router.push("/browse")
     } else {
-      await sendToStripe(user.id)
+      await sendToStripe(user.id, user.email)
     }
   }
 
@@ -69,6 +95,7 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
+    setMessage(null)
 
     if (password !== confirmPassword) {
       setError("Passwords do not match")
@@ -76,7 +103,10 @@ export default function LoginPage() {
       return
     }
 
-    const { data, error } = await supabase.auth.signUp({ email, password })
+    const { data, error } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password,
+    })
 
     if (error || !data?.user) {
       setError(error?.message || "Signup failed")
@@ -84,25 +114,34 @@ export default function LoginPage() {
       return
     }
 
-    await supabase.from("profiles").insert({
-      id: data.user.id,
-      email: data.user.email,
+    const user = data.user
+
+    // profile is created by trigger, but upsert for safety
+    await supabase.from("profiles").upsert({
+      id: user.id,
+      email: user.email,
       is_subscribed: false,
     })
 
-    await sendToStripe(data.user.id)
+    await sendToStripe(user.id, user.email)
   }
 
-  // ✅ RESET
+  // ✅ RESET PASSWORD
   async function handleForgotPassword(e) {
     e.preventDefault()
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://richerthanbefore.com/reset-password",
-    })
+    setError(null)
+    setMessage(null)
+
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.toLowerCase(),
+      {
+        redirectTo: "https://richerthanbefore.com/reset-password",
+      }
+    )
 
     if (error) setError(error.message)
-    else setMessage("Check your email for reset link")
+    else setMessage("Check your email for the reset link")
 
     setLoading(false)
   }
@@ -110,9 +149,12 @@ export default function LoginPage() {
   return (
     <main className="flex items-center justify-center min-h-screen bg-black text-white px-6">
       <div className="bg-[#111] p-10 rounded-2xl w-full max-w-md border border-gray-800">
-
         <h1 className="text-2xl font-bold text-center mb-6">
-          {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Reset Password"}
+          {mode === "login"
+            ? "Sign In"
+            : mode === "signup"
+            ? "Create Account"
+            : "Reset Password"}
         </h1>
 
         <form
@@ -158,9 +200,15 @@ export default function LoginPage() {
 
           <button
             disabled={loading}
-            className="py-3 bg-red-600 w-full rounded-xl font-bold"
+            className="py-3 bg-red-600 w-full rounded-xl font-bold disabled:opacity-50"
           >
-            {loading ? "Please wait..." : mode === "login" ? "Login" : mode === "signup" ? "Sign Up & Pay" : "Send Reset Link"}
+            {loading
+              ? "Please wait..."
+              : mode === "login"
+              ? "Login"
+              : mode === "signup"
+              ? "Sign Up & Pay"
+              : "Send Reset Link"}
           </button>
         </form>
 
@@ -168,7 +216,10 @@ export default function LoginPage() {
         {message && <p className="text-green-500 text-center mt-4">{message}</p>}
 
         {mode === "login" && (
-          <p onClick={() => setMode("reset")} className="text-right text-sm text-gray-400 mt-4 cursor-pointer">
+          <p
+            onClick={() => setMode("reset")}
+            className="text-right text-sm text-gray-400 mt-4 cursor-pointer"
+          >
             Forgot password?
           </p>
         )}
@@ -177,7 +228,9 @@ export default function LoginPage() {
           onClick={() => setMode(mode === "login" ? "signup" : "login")}
           className="mt-6 text-center text-gray-400 cursor-pointer"
         >
-          {mode === "login" ? "Need an account? Sign up" : "Already have an account? Login"}
+          {mode === "login"
+            ? "Need an account? Sign up"
+            : "Already have an account? Login"}
         </p>
       </div>
     </main>

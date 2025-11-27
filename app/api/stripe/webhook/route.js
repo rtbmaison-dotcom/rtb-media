@@ -24,46 +24,62 @@ export async function POST(req) {
       process.env.STRIPE_WEBHOOK_SECRET
     )
   } catch (err) {
-    console.error("Webhook error:", err.message)
+    console.error("❌ Invalid signature:", err.message)
     return new NextResponse("Invalid signature", { status: 400 })
   }
 
   try {
-    const session = event.data.object
+    const data = event.data.object
 
+    // ✅ PAYMENT SUCCESS
     if (event.type === "checkout.session.completed") {
-      const userId = session.metadata?.userId
+      const userId = data?.metadata?.userId
 
       if (!userId) {
-        console.error("No userId in metadata")
-        return NextResponse.json({ received: true })
+        console.error("❌ Missing userId in metadata")
+        return NextResponse.json({ error: "Missing userId" }, { status: 400 })
       }
 
       const { error } = await supabase
         .from("profiles")
-        .update({ is_subscribed: true })
+        .update({
+          is_subscribed: true,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId)
 
       if (error) {
-        console.error(error.message)
-        return NextResponse.json({ error: "Supabase update failed" }, { status: 500 })
+        console.error("❌ Supabase update error:", error.message)
+        return NextResponse.json({ error: error.message }, { status: 500 })
       }
+
+      console.log("✅ Subscription activated for:", userId)
     }
 
+    // ✅ SUBSCRIPTION ENDED
     if (event.type === "customer.subscription.deleted") {
-      const userId = session.metadata?.userId
+      const userId = data?.metadata?.userId
 
-      if (!userId) return NextResponse.json({ received: true })
+      if (!userId) {
+        console.error("❌ Missing userId on cancel")
+        return NextResponse.json({ received: true })
+      }
 
       await supabase
         .from("profiles")
-        .update({ is_subscribed: false })
+        .update({
+          is_subscribed: false,
+          updated_at: new Date().toISOString(),
+        })
         .eq("id", userId)
+
+      console.log("❌ Subscription cancelled for:", userId)
     }
 
     return NextResponse.json({ received: true })
+
   } catch (err) {
-    console.error(err.message)
+    console.error("❌ Webhook error:", err.message)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
