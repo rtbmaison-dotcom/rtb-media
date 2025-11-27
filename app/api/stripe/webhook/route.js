@@ -2,6 +2,8 @@ import Stripe from "stripe"
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 
+export const runtime = "nodejs" // IMPORTANT for Stripe
+
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
 
 const supabase = createClient(
@@ -9,80 +11,92 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
+// ✅ Stripe requires the raw body
 export async function POST(req) {
   const body = await req.text()
-  const signature = req.headers.get("stripe-signature")
+  const sig = req.headers.get("stripe-signature")
 
   let event
 
   try {
     event = stripe.webhooks.constructEvent(
       body,
-      signature,
+      sig,
       process.env.STRIPE_WEBHOOK_SECRET
     )
   } catch (err) {
-    console.error("❌ Webhook Signature Error:", err.message)
-    return new NextResponse(`Webhook Error: ${err.message}`, { status: 400 })
+    console.error("❌ Webhook signature failed:", err.message)
+    return new NextResponse("Webhook Error: Invalid signature", { status: 400 })
   }
 
-  const data = event.data.object
+  try {
+    const data = event.data.object
 
-  // ✅ PAYMENT COMPLETE → ACTIVATE ACCESS
-  if (event.type === "checkout.session.completed") {
-    const email = data.customer_details?.email
+    // ---------- ✅ SUBSCRIPTION SUCCESS ----------
+    if (event.type === "checkout.session.completed") {
+      // Try multiple ways to get email (Stripe isn't consistent)
+      const email =
+        data.customer_details?.email ||
+        data.customer_email ||
+        data.metadata?.email
 
-    if (!email) {
-      console.error("❌ No email found in session")
-      return NextResponse.json({ error: "No email found" }, { status: 400 })
+      if (!email) {
+        console.error("❌ No email found in Stripe payload")
+        return NextResponse.json({ error: "No email found" }, { status: 400 })
+      }
+
+      console.log("✅ Payment completed for:", email)
+
+      // ✅ UPSERT will create if missing or update if existing
+      const { error: supabaseError } = await supabase
+        .from("profiles")
+        .upsert({
+          email,
+          is_subscribed: true,
+          is_paid: true,
+          updated_at: new Date().toISOString(),
+        })
+
+      if (supabaseError) {
+        console.error("❌ Supabase error:", supabaseError.message)
+        return NextResponse.json(
+          { error: "Supabase update failed" },
+          { status: 500 }
+        )
+      }
+
+      console.log("✅ Subscription activated in Supabase")
     }
 
-    console.log("✅ Payment completed for:", email)
+    // ---------- ✅ SUBSCRIPTION CANCELLED (END OF PERIOD) ----------
+    if (event.type === "customer.subscription.deleted") {
+      const subscription = data
 
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        is_subscribed: true,
-        is_paid: true
-      })
-      .eq("email", email)
+      const customer = await stripe.customers.retrieve(subscription.customer)
+      const email = customer.email
 
-    if (error) {
-      console.error("❌ Supabase update error:", error)
-      return NextResponse.json({ error: "Supabase update failed" }, { status: 500 })
+      if (!email) {
+        console.error("❌ No email on subscription cancel")
+        return NextResponse.json({ received: true })
+      }
+
+      console.log("❌ Subscription ended for:", email)
+
+      await supabase
+        .from("profiles")
+        .update({
+          is_subscribed: false,
+          is_paid: false,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("email", email)
+
+      console.log("✅ Subscription removed in Supabase")
     }
 
-    console.log("✅ Supabase updated for:", email)
+    return NextResponse.json({ received: true })
+  } catch (err) {
+    console.error("❌ Webhook handler error:", err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
-
-  // ✅ SUBSCRIPTION ENDED (after period finishes)
-  if (event.type === "customer.subscription.deleted") {
-    const customer = await stripe.customers.retrieve(data.customer)
-
-    const email = customer?.email
-
-    if (!email) {
-      console.error("❌ No email found on subscription delete")
-      return NextResponse.json({ error: "No email found" }, { status: 400 })
-    }
-
-    console.log("❌ Subscription ended for:", email)
-
-    const { error } = await supabase
-      .from("profiles")
-      .update({
-        is_subscribed: false,
-        is_paid: false
-      })
-      .eq("email", email)
-
-    if (error) {
-      console.error("❌ Supabase update error on cancel:", error)
-      return NextResponse.json({ error: "Supabase cancel failed" }, { status: 500 })
-    }
-
-    console.log("✅ Subscription removed in Supabase for:", email)
-  }
-
-  return NextResponse.json({ received: true })
 }
