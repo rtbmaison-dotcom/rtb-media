@@ -4,7 +4,8 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
-const STRIPE_PAYMENT_LINK = "https://buy.stripe.com/14A6oIb8Z9C20LW63b3VC00"
+// Use env var instead of hardcoding
+const STRIPE_PAYMENT_LINK = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_LINK
 
 export default function LoginPage() {
   const router = useRouter()
@@ -37,10 +38,10 @@ export default function LoginPage() {
 
     const user = data.user
 
-    // ✅ Check payment status from Supabase
+    // ✅ CORRECT COLUMN NAME: is_subscribed
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
-      .select("is_paid")
+      .select("is_subscribed")
       .eq("id", user.id)
       .single()
 
@@ -50,12 +51,17 @@ export default function LoginPage() {
       return
     }
 
-    if (profile?.is_paid === true) {
-      // ✅ Paid user → allow access
+    if (profile?.is_subscribed === true) {
+      // ✅ Subscribed user → allow access
       router.push("/browse")
     } else {
-      // ❌ Not paid → send to Stripe
-      window.location.href = STRIPE_PAYMENT_LINK
+      // ❌ Not subscribed → send to Stripe
+      if (STRIPE_PAYMENT_LINK) {
+        window.location.href = STRIPE_PAYMENT_LINK
+      } else {
+        setError("Stripe payment link not configured")
+        setLoading(false)
+      }
     }
   }
 
@@ -109,15 +115,20 @@ export default function LoginPage() {
       return
     }
 
-    // OPTIONAL: create a profile row now (if not created elsewhere)
+    // ✅ Create/ensure profile row exists
     await supabase.from("profiles").upsert({
       id: data.user.id,
       email: data.user.email,
-      is_paid: false,
+      is_subscribed: false,
     })
 
     // ✅ Send new user to Stripe
-    window.location.href = STRIPE_PAYMENT_LINK
+    if (STRIPE_PAYMENT_LINK) {
+      window.location.href = STRIPE_PAYMENT_LINK
+    } else {
+      setError("Stripe payment link not configured")
+      setLoading(false)
+    }
   }
 
   return (
