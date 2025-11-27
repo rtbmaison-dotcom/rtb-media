@@ -23,7 +23,7 @@ export default function WatchPage() {
   const videos = {
     extricate: {
       title: "EXTRICATE",
-      playbackId: "012pLoVTdM02yQXemS015WctVkcziIYSvOau5AEj7mSWWE",
+      playbackId: "JLwA44ZH1v4RcpBDosEILpyQc8wKx01Ayjm7wB02gzzC00",
       poster: "/port-poster.jpeg", // make sure this exists in /public
     },
   }
