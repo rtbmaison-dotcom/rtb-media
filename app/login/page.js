@@ -4,7 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
-// Use env var instead of hardcoding
 const STRIPE_PAYMENT_LINK = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_LINK
 
 export default function LoginPage() {
@@ -25,8 +24,10 @@ export default function LoginPage() {
     setError(null)
     setMessage(null)
 
+    const normalisedEmail = email.toLowerCase()
+
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: normalisedEmail,
       password,
     })
 
@@ -36,13 +37,11 @@ export default function LoginPage() {
       return
     }
 
-    const user = data.user
-
-    // ✅ CORRECT COLUMN NAME: is_subscribed
+    // ✅ CHECK SUBSCRIPTION BY EMAIL (MATCHES WEBHOOK)
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("is_subscribed")
-      .eq("id", user.id)
+      .eq("email", normalisedEmail)
       .single()
 
     if (profileError) {
@@ -52,10 +51,8 @@ export default function LoginPage() {
     }
 
     if (profile?.is_subscribed === true) {
-      // ✅ Subscribed user → allow access
       router.push("/browse")
     } else {
-      // ❌ Not subscribed → send to Stripe
       if (STRIPE_PAYMENT_LINK) {
         window.location.href = STRIPE_PAYMENT_LINK
       } else {
@@ -72,9 +69,12 @@ export default function LoginPage() {
     setError(null)
     setMessage(null)
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: "https://richerthanbefore.com/reset-password",
-    })
+    const { error } = await supabase.auth.resetPasswordForEmail(
+      email.toLowerCase(),
+      {
+        redirectTo: "https://richerthanbefore.com/reset-password",
+      }
+    )
 
     if (error) {
       setError(error.message)
@@ -85,7 +85,7 @@ export default function LoginPage() {
     setLoading(false)
   }
 
-  // ✅ SIGN UP → STRIPE PAYMENT LINK
+  // ✅ SIGN UP
   async function handleSignup(e) {
     e.preventDefault()
     setLoading(true)
@@ -98,8 +98,10 @@ export default function LoginPage() {
       return
     }
 
+    const normalisedEmail = email.toLowerCase()
+
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: normalisedEmail,
       password,
     })
 
@@ -115,14 +117,13 @@ export default function LoginPage() {
       return
     }
 
-    // ✅ Create/ensure profile row exists
+    // ✅ Ensure profile exists
     await supabase.from("profiles").upsert({
       id: data.user.id,
-      email: data.user.email,
+      email: normalisedEmail,
       is_subscribed: false,
     })
 
-    // ✅ Send new user to Stripe
     if (STRIPE_PAYMENT_LINK) {
       window.location.href = STRIPE_PAYMENT_LINK
     } else {
