@@ -46,19 +46,22 @@ export async function POST(req) {
         return NextResponse.json({ received: true })
       }
 
-      // Try match by ID first, fallback to email
+      const filters = []
+      if (userId) filters.push(`id.eq.${userId}`)
+      if (email) filters.push(`email.eq.${email}`)
+
       const { error } = await supabase
         .from("profiles")
         .update({
           is_subscribed: true,
           updated_at: new Date().toISOString(),
         })
-        .or(`id.eq.${userId},email.eq.${email}`)
+        .or(filters.join(","))
 
       if (error) {
         console.error("❌ Supabase update error:", error.message)
       } else {
-        console.log("✅ Subscription activated:", userId || email)
+        console.log("✅ Subscription activated for:", userId || email)
       }
     }
 
@@ -67,7 +70,7 @@ export async function POST(req) {
       const customerId = data?.customer
 
       if (!customerId) {
-        console.log("No customer id on delete")
+        console.log("❌ No customer ID on subscription deletion")
         return NextResponse.json({ received: true })
       }
 
@@ -75,11 +78,11 @@ export async function POST(req) {
       const email = customer?.email
 
       if (!email) {
-        console.log("No email on customer")
+        console.log("❌ No email found on customer")
         return NextResponse.json({ received: true })
       }
 
-      await supabase
+      const { error } = await supabase
         .from("profiles")
         .update({
           is_subscribed: false,
@@ -87,12 +90,16 @@ export async function POST(req) {
         })
         .eq("email", email)
 
-      console.log("❌ Subscription cancelled for:", email)
+      if (error) {
+        console.error("❌ Supabase update error on cancellation:", error.message)
+      } else {
+        console.log("❌ Subscription cancelled for:", email)
+      }
     }
 
     return NextResponse.json({ received: true })
   } catch (err) {
-    console.error("❌ Webhook error:", err)
+    console.error("❌ Webhook processing error:", err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
