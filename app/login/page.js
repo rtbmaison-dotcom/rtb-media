@@ -4,8 +4,6 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
-const STRIPE_PAYMENT_LINK = process.env.NEXT_PUBLIC_STRIPE_CHECKOUT_LINK
-
 export default function LoginPage() {
   const router = useRouter()
 
@@ -13,21 +11,29 @@ export default function LoginPage() {
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [mode, setMode] = useState("login") // login | signup | reset
+  const [mode, setMode] = useState("login")
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
+
+  async function sendToStripe(userId) {
+    const res = await fetch("/api/create-checkout", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ userId }),
+    })
+
+    const { url } = await res.json()
+    window.location.href = url
+  }
 
   // ✅ LOGIN
   async function handleLogin(e) {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMessage(null)
-
-    const normalisedEmail = email.toLowerCase()
 
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: normalisedEmail,
+      email,
       password,
     })
 
@@ -37,52 +43,25 @@ export default function LoginPage() {
       return
     }
 
-    // ✅ CHECK SUBSCRIPTION BY EMAIL (MATCHES WEBHOOK)
+    const user = data.user
+
     const { data: profile, error: profileError } = await supabase
       .from("profiles")
       .select("is_subscribed")
-      .eq("email", normalisedEmail)
+      .eq("id", user.id)
       .single()
 
     if (profileError) {
-      setError("Unable to verify subscription status")
+      setError("Unable to verify subscription")
       setLoading(false)
       return
     }
 
-    if (profile?.is_subscribed === true) {
+    if (profile?.is_subscribed) {
       router.push("/browse")
     } else {
-      if (STRIPE_PAYMENT_LINK) {
-        window.location.href = STRIPE_PAYMENT_LINK
-      } else {
-        setError("Stripe payment link not configured")
-        setLoading(false)
-      }
+      await sendToStripe(user.id)
     }
-  }
-
-  // ✅ FORGOT PASSWORD
-  async function handleForgotPassword(e) {
-    e.preventDefault()
-    setLoading(true)
-    setError(null)
-    setMessage(null)
-
-    const { error } = await supabase.auth.resetPasswordForEmail(
-      email.toLowerCase(),
-      {
-        redirectTo: "https://richerthanbefore.com/reset-password",
-      }
-    )
-
-    if (error) {
-      setError(error.message)
-    } else {
-      setMessage("Password reset link sent. Check your email 📬")
-    }
-
-    setLoading(false)
   }
 
   // ✅ SIGN UP
@@ -90,7 +69,6 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMessage(null)
 
     if (password !== confirmPassword) {
       setError("Passwords do not match")
@@ -98,50 +76,43 @@ export default function LoginPage() {
       return
     }
 
-    const normalisedEmail = email.toLowerCase()
+    const { data, error } = await supabase.auth.signUp({ email, password })
 
-    const { data, error } = await supabase.auth.signUp({
-      email: normalisedEmail,
-      password,
-    })
-
-    if (error) {
-      setError(error.message)
+    if (error || !data?.user) {
+      setError(error?.message || "Signup failed")
       setLoading(false)
       return
     }
 
-    if (!data?.user) {
-      setError("User creation failed")
-      setLoading(false)
-      return
-    }
-
-    // ✅ Ensure profile exists
-    await supabase.from("profiles").upsert({
+    await supabase.from("profiles").insert({
       id: data.user.id,
-      email: normalisedEmail,
+      email: data.user.email,
       is_subscribed: false,
     })
 
-    if (STRIPE_PAYMENT_LINK) {
-      window.location.href = STRIPE_PAYMENT_LINK
-    } else {
-      setError("Stripe payment link not configured")
-      setLoading(false)
-    }
+    await sendToStripe(data.user.id)
+  }
+
+  // ✅ RESET
+  async function handleForgotPassword(e) {
+    e.preventDefault()
+    setLoading(true)
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: "https://richerthanbefore.com/reset-password",
+    })
+
+    if (error) setError(error.message)
+    else setMessage("Check your email for reset link")
+
+    setLoading(false)
   }
 
   return (
     <main className="flex items-center justify-center min-h-screen bg-black text-white px-6">
-      <div className="bg-[#111] p-10 rounded-2xl w-full max-w-md border border-gray-800 shadow-2xl">
+      <div className="bg-[#111] p-10 rounded-2xl w-full max-w-md border border-gray-800">
 
-        <h1 className="text-3xl font-bold text-center mb-6">
-          {mode === "login"
-            ? "Sign In"
-            : mode === "signup"
-            ? "Create Account"
-            : "Reset Password"}
+        <h1 className="text-2xl font-bold text-center mb-6">
+          {mode === "login" ? "Sign In" : mode === "signup" ? "Create Account" : "Reset Password"}
         </h1>
 
         <form
@@ -152,25 +123,25 @@ export default function LoginPage() {
               ? handleSignup
               : handleForgotPassword
           }
-          className="flex flex-col space-y-4"
+          className="space-y-4"
         >
           <input
             type="email"
             placeholder="Email"
+            className="p-3 rounded bg-gray-900 border border-gray-700 w-full"
             value={email}
-            required
             onChange={(e) => setEmail(e.target.value)}
-            className="p-3 rounded bg-gray-900 border border-gray-700"
+            required
           />
 
           {mode !== "reset" && (
             <input
               type="password"
               placeholder="Password"
+              className="p-3 rounded bg-gray-900 border border-gray-700 w-full"
               value={password}
-              required
               onChange={(e) => setPassword(e.target.value)}
-              className="p-3 rounded bg-gray-900 border border-gray-700"
+              required
             />
           )}
 
@@ -178,59 +149,36 @@ export default function LoginPage() {
             <input
               type="password"
               placeholder="Confirm Password"
+              className="p-3 rounded bg-gray-900 border border-gray-700 w-full"
               value={confirmPassword}
-              required
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="p-3 rounded bg-gray-900 border border-gray-700"
+              required
             />
           )}
 
-          {mode === "login" && (
-            <p
-              onClick={() => setMode("reset")}
-              className="text-sm text-gray-400 hover:text-white text-right cursor-pointer"
-            >
-              Forgot password?
-            </p>
-          )}
-
           <button
-            type="submit"
             disabled={loading}
-            className="py-3 bg-red-600 rounded-xl font-bold disabled:opacity-50"
+            className="py-3 bg-red-600 w-full rounded-xl font-bold"
           >
-            {loading
-              ? "Please wait..."
-              : mode === "login"
-              ? "Login"
-              : mode === "signup"
-              ? "Sign Up & Pay"
-              : "Send Reset Link"}
+            {loading ? "Please wait..." : mode === "login" ? "Login" : mode === "signup" ? "Sign Up & Pay" : "Send Reset Link"}
           </button>
         </form>
 
-        {error && <p className="text-red-500 mt-4 text-center">{error}</p>}
-        {message && <p className="text-green-500 mt-4 text-center">{message}</p>}
+        {error && <p className="text-red-500 text-center mt-4">{error}</p>}
+        {message && <p className="text-green-500 text-center mt-4">{message}</p>}
 
-        {mode !== "reset" && (
-          <p
-            className="mt-6 text-center text-gray-400 cursor-pointer"
-            onClick={() => setMode(mode === "login" ? "signup" : "login")}
-          >
-            {mode === "login"
-              ? "Need an account? Sign up"
-              : "Already have an account? Login"}
+        {mode === "login" && (
+          <p onClick={() => setMode("reset")} className="text-right text-sm text-gray-400 mt-4 cursor-pointer">
+            Forgot password?
           </p>
         )}
 
-        {mode === "reset" && (
-          <p
-            onClick={() => setMode("login")}
-            className="mt-6 text-center text-gray-400 cursor-pointer"
-          >
-            Back to login
-          </p>
-        )}
+        <p
+          onClick={() => setMode(mode === "login" ? "signup" : "login")}
+          className="mt-6 text-center text-gray-400 cursor-pointer"
+        >
+          {mode === "login" ? "Need an account? Sign up" : "Already have an account? Login"}
+        </p>
       </div>
     </main>
   )
