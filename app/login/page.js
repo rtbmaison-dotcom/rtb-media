@@ -24,7 +24,7 @@ export default function LoginPage() {
     setError(null)
     setMessage(null)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     })
@@ -35,14 +35,26 @@ export default function LoginPage() {
       return
     }
 
-    // Check subscription status
-    const res = await fetch("/api/check_subscription")
-    const sub = await res.json()
+    const user = data.user
 
-    if (sub?.isSubscribed) {
+    // ✅ Check payment status from Supabase
+    const { data: profile, error: profileError } = await supabase
+      .from("profiles")
+      .select("is_paid")
+      .eq("id", user.id)
+      .single()
+
+    if (profileError) {
+      setError("Unable to verify subscription status")
+      setLoading(false)
+      return
+    }
+
+    if (profile?.is_paid === true) {
+      // ✅ Paid user → allow access
       router.push("/browse")
     } else {
-      // Send to Stripe if not subscribed
+      // ❌ Not paid → send to Stripe
       window.location.href = STRIPE_PAYMENT_LINK
     }
   }
@@ -97,7 +109,14 @@ export default function LoginPage() {
       return
     }
 
-    // ✅ Send new user to Stripe Payment Link
+    // OPTIONAL: create a profile row now (if not created elsewhere)
+    await supabase.from("profiles").upsert({
+      id: data.user.id,
+      email: data.user.email,
+      is_paid: false,
+    })
+
+    // ✅ Send new user to Stripe
     window.location.href = STRIPE_PAYMENT_LINK
   }
 
