@@ -1,12 +1,11 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter, useSearchParams } from "next/navigation"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabaseClient"
 
 export default function LoginPage() {
   const router = useRouter()
-  const searchParams = useSearchParams()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -16,29 +15,22 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  // 🔹 Read ?mode=signup or ?mode=reset from URL
+  // ✅ Read ?mode= from URL safely (NO useSearchParams)
   useEffect(() => {
-    const urlMode = searchParams.get("mode")
-    if (urlMode === "signup" || urlMode === "reset" || urlMode === "login") {
-      setMode(urlMode)
+    const params = new URLSearchParams(window.location.search)
+    const m = params.get("mode")
+    if (m === "signup" || m === "reset" || m === "login") {
+      setMode(m)
     }
-  }, [searchParams])
+  }, [])
 
   async function sendToStripe(userId, email) {
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          email: email.toLowerCase(),
-        }),
+        body: JSON.stringify({ userId, email }),
       })
-
-      if (!res.ok) {
-        const errText = await res.text()
-        throw new Error(errText)
-      }
 
       const { url } = await res.json()
       if (!url) throw new Error("No Stripe URL returned")
@@ -116,7 +108,7 @@ export default function LoginPage() {
 
     const user = data.user
 
-    // profile is created by trigger, but upsert for safety
+    // Ensure profile exists
     await supabase.from("profiles").upsert({
       id: user.id,
       email: user.email,
@@ -149,6 +141,7 @@ export default function LoginPage() {
   return (
     <main className="flex items-center justify-center min-h-screen bg-black text-white px-6">
       <div className="bg-[#111] p-10 rounded-2xl w-full max-w-md border border-gray-800">
+
         <h1 className="text-2xl font-bold text-center mb-6">
           {mode === "login"
             ? "Sign In"
