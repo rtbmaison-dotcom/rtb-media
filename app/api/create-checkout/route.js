@@ -16,7 +16,13 @@ export async function POST(req) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
 
-      customer_email: email, // ✅ LINKS STRIPE TO USER EMAIL
+      // ✅ SHOW PROMO CODE BOX
+      allow_promotion_codes: true,
+
+      // ✅ ENABLE PAYPAL (if available in your Stripe region)
+      payment_method_types: ["card", "paypal"],
+
+      customer_email: email,
 
       line_items: [
         {
@@ -28,10 +34,8 @@ export async function POST(req) {
       success_url: "https://richerthanbefore.com/browse?success=true",
       cancel_url: "https://richerthanbefore.com/login?cancelled=true",
 
-      payment_method_types: ["card"],
-
       metadata: {
-        userId, // ✅ THIS IS WHAT YOUR WEBHOOK MUST USE
+        userId, // ✅ used by your webhook
       },
     })
 
