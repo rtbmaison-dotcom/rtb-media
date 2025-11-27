@@ -4,7 +4,9 @@ import { createClient } from "@supabase/supabase-js"
 
 export const runtime = "nodejs"
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY)
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
+  apiVersion: "2023-10-16",
+})
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,43 +27,55 @@ export async function POST(req) {
     )
   } catch (err) {
     console.error("❌ Invalid signature:", err.message)
-    return new NextResponse("Invalid signature", { status: 400 })
+    return new Response("Invalid signature", { status: 400 })
   }
 
   try {
     const data = event.data.object
 
-    // ✅ PAYMENT SUCCESS
+    /* ------------------- PAYMENT SUCCESS ------------------- */
     if (event.type === "checkout.session.completed") {
       const userId = data?.metadata?.userId
+      const email =
+        data?.customer_details?.email ||
+        data?.customer_email ||
+        null
 
-      if (!userId) {
-        console.error("❌ Missing userId in metadata")
-        return NextResponse.json({ error: "Missing userId" }, { status: 400 })
+      if (!userId && !email) {
+        console.error("❌ No userId or email on session")
+        return NextResponse.json({ received: true })
       }
 
+      // Try match by ID first, fallback to email
       const { error } = await supabase
         .from("profiles")
         .update({
           is_subscribed: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", userId)
+        .or(`id.eq.${userId},email.eq.${email}`)
 
       if (error) {
         console.error("❌ Supabase update error:", error.message)
-        return NextResponse.json({ error: error.message }, { status: 500 })
+      } else {
+        console.log("✅ Subscription activated:", userId || email)
       }
-
-      console.log("✅ Subscription activated for:", userId)
     }
 
-    // ✅ SUBSCRIPTION ENDED
+    /* ------------------- SUBSCRIPTION CANCELLED ------------------- */
     if (event.type === "customer.subscription.deleted") {
-      const userId = data?.metadata?.userId
+      const customerId = data?.customer
 
-      if (!userId) {
-        console.error("❌ Missing userId on cancel")
+      if (!customerId) {
+        console.log("No customer id on delete")
+        return NextResponse.json({ received: true })
+      }
+
+      const customer = await stripe.customers.retrieve(customerId)
+      const email = customer?.email
+
+      if (!email) {
+        console.log("No email on customer")
         return NextResponse.json({ received: true })
       }
 
@@ -71,15 +85,14 @@ export async function POST(req) {
           is_subscribed: false,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", userId)
+        .eq("email", email)
 
-      console.log("❌ Subscription cancelled for:", userId)
+      console.log("❌ Subscription cancelled for:", email)
     }
 
     return NextResponse.json({ received: true })
-
   } catch (err) {
-    console.error("❌ Webhook error:", err.message)
+    console.error("❌ Webhook error:", err)
     return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

@@ -15,21 +15,21 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  // ✅ Read ?mode= from URL safely (NO useSearchParams)
+  // ✅ Read ?mode= from URL safely
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const m = params.get("mode")
-    if (m === "signup" || m === "reset" || m === "login") {
+    if (["login", "signup", "reset"].includes(m)) {
       setMode(m)
     }
   }, [])
 
-  async function sendToStripe(userId, email) {
+  async function sendToStripe(userId, userEmail) {
     try {
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId, email }),
+        body: JSON.stringify({ userId, email: userEmail }),
       })
 
       const { url } = await res.json()
@@ -48,7 +48,6 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMessage(null)
 
     const { data, error } = await supabase.auth.signInWithPassword({
       email: email.toLowerCase(),
@@ -87,7 +86,6 @@ export default function LoginPage() {
     e.preventDefault()
     setLoading(true)
     setError(null)
-    setMessage(null)
 
     if (password !== confirmPassword) {
       setError("Passwords do not match")
@@ -106,16 +104,8 @@ export default function LoginPage() {
       return
     }
 
-    const user = data.user
-
-    // Ensure profile exists
-    await supabase.from("profiles").upsert({
-      id: user.id,
-      email: user.email,
-      is_subscribed: false,
-    })
-
-    await sendToStripe(user.id, user.email)
+    // 👇 DO NOT create profile here. Trigger handles it.
+    await sendToStripe(data.user.id, data.user.email)
   }
 
   // ✅ RESET PASSWORD
