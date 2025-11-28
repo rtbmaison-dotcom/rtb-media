@@ -7,7 +7,7 @@ export default function Home() {
 
   const handleSubscribe = () => {
     window.location.href =
-      "https://buy.stripe.com/14A6oIb8Z9C20LW63b3VC00"
+      "https://richerthanbefore.com/login?mode=signup"
   }
 
   return (
