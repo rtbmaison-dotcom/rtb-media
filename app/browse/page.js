@@ -156,7 +156,7 @@ export default function Browse() {
           {comingSoon.map((item, i) => (
             <div
               key={i}
-              onClick={() => router.push("/login?mode=signup")}
+              onClick={() => router.push("")}
               className="w-[240px] rounded-lg overflow-hidden bg-gray-800 relative cursor-pointer"
             >
               <img
