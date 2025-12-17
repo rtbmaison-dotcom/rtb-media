@@ -14,7 +14,7 @@ export async function POST(req) {
     }
 
     const session = await stripe.checkout.sessions.create({
-      mode: "subscription",
+      mode: "payment",
 
       // ✅ SHOW PROMO CODE BOX
       allow_promotion_codes: true,
