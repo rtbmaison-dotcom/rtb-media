@@ -1,13 +1,36 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function Home() {
   const router = useRouter()
+  const [checkingAuth, setCheckingAuth] = useState(true)
+
+  // 🔐 Automatic sign-in redirect
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession()
+
+      if (data?.session) {
+        router.replace("/browse") // or "/library"
+      } else {
+        setCheckingAuth(false)
+      }
+    }
+
+    checkSession()
+  }, [router])
 
   const handleSubscribe = () => {
     window.location.href =
       "https://richerthanbefore.com/login?mode=signup"
+  }
+
+  // ⏳ Prevent landing page flash
+  if (checkingAuth) {
+    return <div className="bg-[#070B17] min-h-screen w-full" />
   }
 
   return (
@@ -98,7 +121,7 @@ export default function Home() {
             { title: "Founding Status", desc: "Early supporter perks + recognition." },
             { title: "Early Viewing", desc: "Watch episodes before public release." },
             { title: "Cinema Quality", desc: "Stunning visuals in HD & 4K." },
-            { title: "Exclusive Updates", desc: " New drops + insider news." },
+            { title: "Exclusive Updates", desc: "New drops + insider news." },
           ].map((item) => (
             <div
               key={item.title}
