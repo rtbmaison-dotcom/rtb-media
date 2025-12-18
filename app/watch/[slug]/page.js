@@ -20,13 +20,19 @@ export default function WatchPage() {
   const currentUserId = useRef(null)
 
   // ✅ Your films
-  const videos = {
-    extricate: {
-      title: "EXTRICATE",
-      playbackId: "JLwA44ZH1v4RcpBDosEILpyQc8wKx01Ayjm7wB02gzzC00",
-      poster: "/port-poster.jpeg", // make sure this exists in /public
-    },
-  }
+ const videos = {
+  extricate: {
+    title: "EXTRICATE",
+    playbackId: "JLwA44ZH1v4RcpBDosEILpyQc8wKx01Ayjm7wB02gzzC00",
+    poster: "/port-poster.jpeg",
+  },
+  "behind-the-lens": {
+    title: "Behind The Lens : Extricate",
+    playbackId: "UP5ldSu1IHBFp01cB3vOFOiy01IAgi02ui1pccxt01KiCM00",
+    poster: "/BTL.jpg",
+  },
+}
+
 
   const film = videos[slug]
 

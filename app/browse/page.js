@@ -51,7 +51,7 @@ export default function Browse() {
     {
       title: "Behind The Lens : Extricate",
       image: "BTL.jpg",
-      link: "",
+      link: "/watch/behind-the-lens",
     },
   ]
 
