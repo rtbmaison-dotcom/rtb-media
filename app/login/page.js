@@ -15,7 +15,7 @@ export default function LoginPage() {
   const [error, setError] = useState(null)
   const [message, setMessage] = useState(null)
 
-  // ✅ Read ?mode= from URL safely
+  // ✅ Read ?mode= from URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const m = params.get("mode")
@@ -23,6 +23,28 @@ export default function LoginPage() {
       setMode(m)
     }
   }, [])
+
+  // 🔐 AUTH STATE LISTENER (THE IMPORTANT PART)
+  useEffect(() => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (event === "SIGNED_IN" && session?.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("is_subscribed")
+          .eq("id", session.user.id)
+          .single()
+
+        if (profile?.is_subscribed) {
+          router.replace("/browse")
+        }
+        // if not subscribed → Stripe flow handles redirect
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [router])
 
   async function sendToStripe(userId, userEmail) {
     try {
@@ -74,11 +96,11 @@ export default function LoginPage() {
       return
     }
 
-    if (profile?.is_subscribed === true) {
-      router.push("/browse")
-    } else {
+    if (profile?.is_subscribed !== true) {
       await sendToStripe(user.id, user.email)
     }
+
+    setLoading(false)
   }
 
   // ✅ SIGN UP
@@ -104,7 +126,6 @@ export default function LoginPage() {
       return
     }
 
-    // 👇 DO NOT create profile here. Trigger handles it.
     await sendToStripe(data.user.id, data.user.email)
   }
 
