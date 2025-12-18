@@ -72,26 +72,8 @@ export default function AccountPage() {
 
         <div className="border-t border-white/10 pt-6 space-y-8">
 
-          {/* SUBSCRIPTION */}
-          <div>
-            <h2 className="text-xl font-semibold mb-2">Subscription</h2>
-
-            <button
-              onClick={handleManageBilling}
-              disabled={billingLoading}
-              className={`px-6 py-3 rounded-lg font-semibold transition ${
-                billingLoading
-                  ? "bg-gray-700 cursor-not-allowed"
-                  : "bg-red-600 hover:bg-red-700"
-              }`}
-            >
-              {billingLoading ? "Redirecting..." : "Manage / Cancel Subscription"}
-            </button>
-
-            <p className="text-xs opacity-60 mt-2">
-              By subscribing you agree that all payments are final and non-refundable.
-            </p>
-          </div>
+          
+          
 
           {/* SIGN OUT */}
           <div className="border-t border-white/10 pt-6">
